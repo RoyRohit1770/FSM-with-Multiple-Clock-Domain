@@ -1,0 +1,77 @@
+
+`timescale 1ns/1ps
+
+module tb_sequence_detector;
+
+  // Inputs
+  reg clk_ext;
+  reg clk_sys;
+  reg reset;
+  reg async_in;
+
+  // Output
+  wire detected;
+
+  // Instantiate the DUT
+  sequence_detector_cross_clk uut (
+    .clk_ext(clk_ext),
+    .clk_sys(clk_sys),
+    .reset(reset),
+    .async_in(async_in),
+    .detected(detected)
+  );
+
+  // Generate clk_ext (faster or async clock)
+  initial clk_ext = 0;
+  always #10 clk_ext = ~clk_ext;  // Period = 14ns
+
+  // Generate clk_sys (system clock)
+  initial clk_sys = 0;
+  always #20 clk_sys = ~clk_sys;  // Period = 20ns
+
+  // Reset logic
+  initial begin
+    reset = 0;
+    #10;
+    reset = 1;
+  end
+
+  // Stimulus for async_in (1011 sequence)
+  initial begin
+    async_in = 0;
+    #100;
+
+    // Send sequence 1011 on clk_ext
+    send_bit(1);
+    send_bit(0);
+    send_bit(1);
+    send_bit(1);
+
+    // Some idle time
+    #100;
+
+    // Send 1011 again (for overlap test)
+    send_bit(0);
+    send_bit(1);
+    send_bit(1);
+    send_bit(1);
+
+    #100;
+    $finish;
+  end
+
+  // Task to send bits on clk_ext domain
+  task send_bit(input bit b);
+    begin
+      async_in = b;
+      #20;  // Hold for one clk_ext period
+    end
+  endtask
+
+  // Dumpfile for waveform viewing
+  initial begin
+    $dumpfile("sequence_detector.vcd");
+    $dumpvars(0, tb_sequence_detector);
+  end
+
+endmodule
